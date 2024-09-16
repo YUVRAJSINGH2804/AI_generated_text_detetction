@@ -1,0 +1,3706 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "9027f1e3",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:04.984011Z",
+     "iopub.status.busy": "2024-09-16T11:27:04.983563Z",
+     "iopub.status.idle": "2024-09-16T11:27:05.972471Z",
+     "shell.execute_reply": "2024-09-16T11:27:05.970802Z"
+    },
+    "papermill": {
+     "duration": 1.007685,
+     "end_time": "2024-09-16T11:27:05.975188",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:04.967503",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "/kaggle/input/llm-detect-ai-generated-text/sample_submission.csv\n",
+      "/kaggle/input/llm-detect-ai-generated-text/train_prompts.csv\n",
+      "/kaggle/input/llm-detect-ai-generated-text/test_essays.csv\n",
+      "/kaggle/input/llm-detect-ai-generated-text/train_essays.csv\n"
+     ]
+    }
+   ],
+   "source": [
+    "# This Python 3 environment comes with many helpful analytics libraries installed\n",
+    "# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n",
+    "# For example, here's several helpful packages to load\n",
+    "\n",
+    "import numpy as np # linear algebra\n",
+    "import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n",
+    "\n",
+    "# Input data files are available in the read-only \"../input/\" directory\n",
+    "# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory\n",
+    "\n",
+    "import os\n",
+    "for dirname, _, filenames in os.walk('/kaggle/input'):\n",
+    "    for filename in filenames:\n",
+    "        print(os.path.join(dirname, filename))\n",
+    "\n",
+    "# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n",
+    "# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "9c4fb6a2",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.005722Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.005123Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.010532Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.009508Z"
+    },
+    "papermill": {
+     "duration": 0.022606,
+     "end_time": "2024-09-16T11:27:06.012898",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:05.990292",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "12af75f3",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.042992Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.042262Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.151907Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.150575Z"
+    },
+    "papermill": {
+     "duration": 0.128037,
+     "end_time": "2024-09-16T11:27:06.154779",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.026742",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "train_eassy= pd.read_csv(\"/kaggle/input/llm-detect-ai-generated-text/train_essays.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "dd9699b0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.185714Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.184318Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.216880Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.215689Z"
+    },
+    "papermill": {
+     "duration": 0.050632,
+     "end_time": "2024-09-16T11:27:06.219314",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.168682",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>generated</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0059830c</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars. Cars have been around since they became ...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>005db917</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation is a large necessity in most co...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>008f63e3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>\"America's love affair with it's vehicles seem...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>00940276</td>\n",
+       "      <td>0</td>\n",
+       "      <td>How often do you ride in a car? Do you drive a...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>00c39458</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars are a wonderful thing. They are perhaps o...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>fe6ff9a5</td>\n",
+       "      <td>1</td>\n",
+       "      <td>There has been a fuss about the Elector Colleg...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>ff669174</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage has many advantages. Such a...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>ffa247e0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>There's a new trend that has been developing f...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>ffc237e9</td>\n",
+       "      <td>0</td>\n",
+       "      <td>As we all know cars are a big part of our soci...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>ffe1ca0d</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars have been around since the 1800's and hav...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 4 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "            id  prompt_id                                               text  \\\n",
+       "0     0059830c          0  Cars. Cars have been around since they became ...   \n",
+       "1     005db917          0  Transportation is a large necessity in most co...   \n",
+       "2     008f63e3          0  \"America's love affair with it's vehicles seem...   \n",
+       "3     00940276          0  How often do you ride in a car? Do you drive a...   \n",
+       "4     00c39458          0  Cars are a wonderful thing. They are perhaps o...   \n",
+       "...        ...        ...                                                ...   \n",
+       "1373  fe6ff9a5          1  There has been a fuss about the Elector Colleg...   \n",
+       "1374  ff669174          0  Limiting car usage has many advantages. Such a...   \n",
+       "1375  ffa247e0          0  There's a new trend that has been developing f...   \n",
+       "1376  ffc237e9          0  As we all know cars are a big part of our soci...   \n",
+       "1377  ffe1ca0d          0  Cars have been around since the 1800's and hav...   \n",
+       "\n",
+       "      generated  \n",
+       "0             0  \n",
+       "1             0  \n",
+       "2             0  \n",
+       "3             0  \n",
+       "4             0  \n",
+       "...         ...  \n",
+       "1373          0  \n",
+       "1374          0  \n",
+       "1375          0  \n",
+       "1376          0  \n",
+       "1377          0  \n",
+       "\n",
+       "[1378 rows x 4 columns]"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train_eassy"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "042c5479",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.249834Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.249348Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.260759Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.259692Z"
+    },
+    "papermill": {
+     "duration": 0.029372,
+     "end_time": "2024-09-16T11:27:06.263490",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.234118",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "train_prompts = pd.read_csv(\"/kaggle/input/llm-detect-ai-generated-text/train_prompts.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "888a7867",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.293974Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.293524Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.306039Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.304838Z"
+    },
+    "papermill": {
+     "duration": 0.030537,
+     "end_time": "2024-09-16T11:27:06.308560",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.278023",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>Does the electoral college work?</td>\n",
+       "      <td>Write a letter to your state senator in which ...</td>\n",
+       "      <td># What Is the Electoral College? by the Office...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   prompt_id                       prompt_name  \\\n",
+       "0          0                   Car-free cities   \n",
+       "1          1  Does the electoral college work?   \n",
+       "\n",
+       "                                        instructions  \\\n",
+       "0  Write an explanatory essay to inform fellow ci...   \n",
+       "1  Write a letter to your state senator in which ...   \n",
+       "\n",
+       "                                         source_text  \n",
+       "0  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1  # What Is the Electoral College? by the Office...  "
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train_prompts"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "39629676",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.339178Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.338762Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.360206Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.358845Z"
+    },
+    "papermill": {
+     "duration": 0.0398,
+     "end_time": "2024-09-16T11:27:06.362735",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.322935",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df= pd.merge(train_eassy, train_prompts, on='prompt_id')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "a12619bd",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.392680Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.392205Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.408617Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.407529Z"
+    },
+    "papermill": {
+     "duration": 0.034003,
+     "end_time": "2024-09-16T11:27:06.410717",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.376714",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>generated</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0059830c</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars. Cars have been around since they became ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>005db917</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation is a large necessity in most co...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>008f63e3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>\"America's love affair with it's vehicles seem...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>00940276</td>\n",
+       "      <td>0</td>\n",
+       "      <td>How often do you ride in a car? Do you drive a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>00c39458</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars are a wonderful thing. They are perhaps o...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>fe6ff9a5</td>\n",
+       "      <td>1</td>\n",
+       "      <td>There has been a fuss about the Elector Colleg...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Does the electoral college work?</td>\n",
+       "      <td>Write a letter to your state senator in which ...</td>\n",
+       "      <td># What Is the Electoral College? by the Office...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>ff669174</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage has many advantages. Such a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>ffa247e0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>There's a new trend that has been developing f...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>ffc237e9</td>\n",
+       "      <td>0</td>\n",
+       "      <td>As we all know cars are a big part of our soci...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>ffe1ca0d</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars have been around since the 1800's and hav...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 7 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "            id  prompt_id                                               text  \\\n",
+       "0     0059830c          0  Cars. Cars have been around since they became ...   \n",
+       "1     005db917          0  Transportation is a large necessity in most co...   \n",
+       "2     008f63e3          0  \"America's love affair with it's vehicles seem...   \n",
+       "3     00940276          0  How often do you ride in a car? Do you drive a...   \n",
+       "4     00c39458          0  Cars are a wonderful thing. They are perhaps o...   \n",
+       "...        ...        ...                                                ...   \n",
+       "1373  fe6ff9a5          1  There has been a fuss about the Elector Colleg...   \n",
+       "1374  ff669174          0  Limiting car usage has many advantages. Such a...   \n",
+       "1375  ffa247e0          0  There's a new trend that has been developing f...   \n",
+       "1376  ffc237e9          0  As we all know cars are a big part of our soci...   \n",
+       "1377  ffe1ca0d          0  Cars have been around since the 1800's and hav...   \n",
+       "\n",
+       "      generated                       prompt_name  \\\n",
+       "0             0                   Car-free cities   \n",
+       "1             0                   Car-free cities   \n",
+       "2             0                   Car-free cities   \n",
+       "3             0                   Car-free cities   \n",
+       "4             0                   Car-free cities   \n",
+       "...         ...                               ...   \n",
+       "1373          0  Does the electoral college work?   \n",
+       "1374          0                   Car-free cities   \n",
+       "1375          0                   Car-free cities   \n",
+       "1376          0                   Car-free cities   \n",
+       "1377          0                   Car-free cities   \n",
+       "\n",
+       "                                           instructions  \\\n",
+       "0     Write an explanatory essay to inform fellow ci...   \n",
+       "1     Write an explanatory essay to inform fellow ci...   \n",
+       "2     Write an explanatory essay to inform fellow ci...   \n",
+       "3     Write an explanatory essay to inform fellow ci...   \n",
+       "4     Write an explanatory essay to inform fellow ci...   \n",
+       "...                                                 ...   \n",
+       "1373  Write a letter to your state senator in which ...   \n",
+       "1374  Write an explanatory essay to inform fellow ci...   \n",
+       "1375  Write an explanatory essay to inform fellow ci...   \n",
+       "1376  Write an explanatory essay to inform fellow ci...   \n",
+       "1377  Write an explanatory essay to inform fellow ci...   \n",
+       "\n",
+       "                                            source_text  \n",
+       "0     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "2     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "3     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "4     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "...                                                 ...  \n",
+       "1373  # What Is the Electoral College? by the Office...  \n",
+       "1374  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1375  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1376  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1377  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "\n",
+       "[1378 rows x 7 columns]"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "105a94ba",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.443621Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.443192Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.456329Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.455153Z"
+    },
+    "papermill": {
+     "duration": 0.03384,
+     "end_time": "2024-09-16T11:27:06.459096",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.425256",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id              0\n",
+       "prompt_id       0\n",
+       "text            0\n",
+       "generated       0\n",
+       "prompt_name     0\n",
+       "instructions    0\n",
+       "source_text     0\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.isnull().sum()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "92e8c81e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.492769Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.492330Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.498935Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.497628Z"
+    },
+    "papermill": {
+     "duration": 0.026933,
+     "end_time": "2024-09-16T11:27:06.501675",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.474742",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df= df.drop([\"id\"] ,axis=1)\n",
+    "# droped prompt_id and id"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cca1a229",
+   "metadata": {
+    "papermill": {
+     "duration": 0.013987,
+     "end_time": "2024-09-16T11:27:06.530299",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.516312",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "6bd51b18",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.564469Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.563757Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.571202Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.569861Z"
+    },
+    "papermill": {
+     "duration": 0.027649,
+     "end_time": "2024-09-16T11:27:06.573776",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.546127",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x =df.drop([\"generated\"],axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "16614aaa",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.604856Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.604409Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.609632Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.608500Z"
+    },
+    "papermill": {
+     "duration": 0.023392,
+     "end_time": "2024-09-16T11:27:06.611873",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.588481",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "y= df[\"generated\"]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "250b02b1",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.642716Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.642267Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.651128Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.650051Z"
+    },
+    "papermill": {
+     "duration": 0.027216,
+     "end_time": "2024-09-16T11:27:06.653542",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.626326",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0       0\n",
+       "1       0\n",
+       "2       0\n",
+       "3       0\n",
+       "4       0\n",
+       "       ..\n",
+       "1373    0\n",
+       "1374    0\n",
+       "1375    0\n",
+       "1376    0\n",
+       "1377    0\n",
+       "Name: generated, Length: 1378, dtype: int64"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "3952776c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.684653Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.684211Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.699245Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.698050Z"
+    },
+    "papermill": {
+     "duration": 0.033388,
+     "end_time": "2024-09-16T11:27:06.701504",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.668116",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars. Cars have been around since they became ...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation is a large necessity in most co...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>\"America's love affair with it's vehicles seem...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>How often do you ride in a car? Do you drive a...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars are a wonderful thing. They are perhaps o...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>There has been a fuss about the Elector Colleg...</td>\n",
+       "      <td>Does the electoral college work?</td>\n",
+       "      <td>Write a letter to your state senator in which ...</td>\n",
+       "      <td># What Is the Electoral College? by the Office...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage has many advantages. Such a...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>There's a new trend that has been developing f...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>As we all know cars are a big part of our soci...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars have been around since the 1800's and hav...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 5 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id                                               text  \\\n",
+       "0             0  Cars. Cars have been around since they became ...   \n",
+       "1             0  Transportation is a large necessity in most co...   \n",
+       "2             0  \"America's love affair with it's vehicles seem...   \n",
+       "3             0  How often do you ride in a car? Do you drive a...   \n",
+       "4             0  Cars are a wonderful thing. They are perhaps o...   \n",
+       "...         ...                                                ...   \n",
+       "1373          1  There has been a fuss about the Elector Colleg...   \n",
+       "1374          0  Limiting car usage has many advantages. Such a...   \n",
+       "1375          0  There's a new trend that has been developing f...   \n",
+       "1376          0  As we all know cars are a big part of our soci...   \n",
+       "1377          0  Cars have been around since the 1800's and hav...   \n",
+       "\n",
+       "                           prompt_name  \\\n",
+       "0                      Car-free cities   \n",
+       "1                      Car-free cities   \n",
+       "2                      Car-free cities   \n",
+       "3                      Car-free cities   \n",
+       "4                      Car-free cities   \n",
+       "...                                ...   \n",
+       "1373  Does the electoral college work?   \n",
+       "1374                   Car-free cities   \n",
+       "1375                   Car-free cities   \n",
+       "1376                   Car-free cities   \n",
+       "1377                   Car-free cities   \n",
+       "\n",
+       "                                           instructions  \\\n",
+       "0     Write an explanatory essay to inform fellow ci...   \n",
+       "1     Write an explanatory essay to inform fellow ci...   \n",
+       "2     Write an explanatory essay to inform fellow ci...   \n",
+       "3     Write an explanatory essay to inform fellow ci...   \n",
+       "4     Write an explanatory essay to inform fellow ci...   \n",
+       "...                                                 ...   \n",
+       "1373  Write a letter to your state senator in which ...   \n",
+       "1374  Write an explanatory essay to inform fellow ci...   \n",
+       "1375  Write an explanatory essay to inform fellow ci...   \n",
+       "1376  Write an explanatory essay to inform fellow ci...   \n",
+       "1377  Write an explanatory essay to inform fellow ci...   \n",
+       "\n",
+       "                                            source_text  \n",
+       "0     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "2     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "3     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "4     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "...                                                 ...  \n",
+       "1373  # What Is the Electoral College? by the Office...  \n",
+       "1374  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1375  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1376  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1377  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "\n",
+       "[1378 rows x 5 columns]"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "2152c0da",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.733308Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.732568Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.740996Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.739929Z"
+    },
+    "papermill": {
+     "duration": 0.026702,
+     "end_time": "2024-09-16T11:27:06.743180",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.716478",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array(['Car-free cities', 'Does the electoral college work?'],\n",
+       "      dtype=object)"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x[\"prompt_name\"].unique()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "37ab5042",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.776390Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.775955Z",
+     "iopub.status.idle": "2024-09-16T11:27:06.791321Z",
+     "shell.execute_reply": "2024-09-16T11:27:06.790029Z"
+    },
+    "papermill": {
+     "duration": 0.035321,
+     "end_time": "2024-09-16T11:27:06.793558",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.758237",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars. Cars have been around since they became ...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation is a large necessity in most co...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>\"America's love affair with it's vehicles seem...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>How often do you ride in a car? Do you drive a...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars are a wonderful thing. They are perhaps o...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>There has been a fuss about the Elector Colleg...</td>\n",
+       "      <td>Does the electoral college work?</td>\n",
+       "      <td>Write a letter to your state senator in which ...</td>\n",
+       "      <td># What Is the Electoral College? by the Office...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage has many advantages. Such a...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>There's a new trend that has been developing f...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>As we all know cars are a big part of our soci...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars have been around since the 1800's and hav...</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 5 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id                                               text  \\\n",
+       "0             0  Cars. Cars have been around since they became ...   \n",
+       "1             0  Transportation is a large necessity in most co...   \n",
+       "2             0  \"America's love affair with it's vehicles seem...   \n",
+       "3             0  How often do you ride in a car? Do you drive a...   \n",
+       "4             0  Cars are a wonderful thing. They are perhaps o...   \n",
+       "...         ...                                                ...   \n",
+       "1373          1  There has been a fuss about the Elector Colleg...   \n",
+       "1374          0  Limiting car usage has many advantages. Such a...   \n",
+       "1375          0  There's a new trend that has been developing f...   \n",
+       "1376          0  As we all know cars are a big part of our soci...   \n",
+       "1377          0  Cars have been around since the 1800's and hav...   \n",
+       "\n",
+       "                           prompt_name  \\\n",
+       "0                      Car-free cities   \n",
+       "1                      Car-free cities   \n",
+       "2                      Car-free cities   \n",
+       "3                      Car-free cities   \n",
+       "4                      Car-free cities   \n",
+       "...                                ...   \n",
+       "1373  Does the electoral college work?   \n",
+       "1374                   Car-free cities   \n",
+       "1375                   Car-free cities   \n",
+       "1376                   Car-free cities   \n",
+       "1377                   Car-free cities   \n",
+       "\n",
+       "                                           instructions  \\\n",
+       "0     Write an explanatory essay to inform fellow ci...   \n",
+       "1     Write an explanatory essay to inform fellow ci...   \n",
+       "2     Write an explanatory essay to inform fellow ci...   \n",
+       "3     Write an explanatory essay to inform fellow ci...   \n",
+       "4     Write an explanatory essay to inform fellow ci...   \n",
+       "...                                                 ...   \n",
+       "1373  Write a letter to your state senator in which ...   \n",
+       "1374  Write an explanatory essay to inform fellow ci...   \n",
+       "1375  Write an explanatory essay to inform fellow ci...   \n",
+       "1376  Write an explanatory essay to inform fellow ci...   \n",
+       "1377  Write an explanatory essay to inform fellow ci...   \n",
+       "\n",
+       "                                            source_text  \n",
+       "0     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "2     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "3     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "4     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "...                                                 ...  \n",
+       "1373  # What Is the Electoral College? by the Office...  \n",
+       "1374  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1375  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1376  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1377  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "\n",
+       "[1378 rows x 5 columns]"
+      ]
+     },
+     "execution_count": 16,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "69b9ecf9",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:06.826046Z",
+     "iopub.status.busy": "2024-09-16T11:27:06.825612Z",
+     "iopub.status.idle": "2024-09-16T11:27:08.224915Z",
+     "shell.execute_reply": "2024-09-16T11:27:08.223641Z"
+    },
+    "papermill": {
+     "duration": 1.418616,
+     "end_time": "2024-09-16T11:27:08.227636",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:06.809020",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.preprocessing import LabelEncoder"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "3eb2086f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:08.260548Z",
+     "iopub.status.busy": "2024-09-16T11:27:08.259932Z",
+     "iopub.status.idle": "2024-09-16T11:27:08.269093Z",
+     "shell.execute_reply": "2024-09-16T11:27:08.267884Z"
+    },
+    "papermill": {
+     "duration": 0.028387,
+     "end_time": "2024-09-16T11:27:08.271416",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:08.243029",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "columns_to_encode = ['prompt_name', 'instructions','source_text']\n",
+    "\n",
+    "le = LabelEncoder()\n",
+    "\n",
+    "for column in columns_to_encode:\n",
+    "    x[column] = le.fit_transform(x[column])\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "9fa810bf",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:08.303894Z",
+     "iopub.status.busy": "2024-09-16T11:27:08.303421Z",
+     "iopub.status.idle": "2024-09-16T11:27:08.320056Z",
+     "shell.execute_reply": "2024-09-16T11:27:08.318841Z"
+    },
+    "papermill": {
+     "duration": 0.035448,
+     "end_time": "2024-09-16T11:27:08.322255",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:08.286807",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>generated</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars. Cars have been around since they became ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation is a large necessity in most co...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>\"America's love affair with it's vehicles seem...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>How often do you ride in a car? Do you drive a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars are a wonderful thing. They are perhaps o...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>There has been a fuss about the Elector Colleg...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Does the electoral college work?</td>\n",
+       "      <td>Write a letter to your state senator in which ...</td>\n",
+       "      <td># What Is the Electoral College? by the Office...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage has many advantages. Such a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>There's a new trend that has been developing f...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>As we all know cars are a big part of our soci...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars have been around since the 1800's and hav...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Car-free cities</td>\n",
+       "      <td>Write an explanatory essay to inform fellow ci...</td>\n",
+       "      <td># In German Suburb, Life Goes On Without Cars ...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 6 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id                                               text  generated  \\\n",
+       "0             0  Cars. Cars have been around since they became ...          0   \n",
+       "1             0  Transportation is a large necessity in most co...          0   \n",
+       "2             0  \"America's love affair with it's vehicles seem...          0   \n",
+       "3             0  How often do you ride in a car? Do you drive a...          0   \n",
+       "4             0  Cars are a wonderful thing. They are perhaps o...          0   \n",
+       "...         ...                                                ...        ...   \n",
+       "1373          1  There has been a fuss about the Elector Colleg...          0   \n",
+       "1374          0  Limiting car usage has many advantages. Such a...          0   \n",
+       "1375          0  There's a new trend that has been developing f...          0   \n",
+       "1376          0  As we all know cars are a big part of our soci...          0   \n",
+       "1377          0  Cars have been around since the 1800's and hav...          0   \n",
+       "\n",
+       "                           prompt_name  \\\n",
+       "0                      Car-free cities   \n",
+       "1                      Car-free cities   \n",
+       "2                      Car-free cities   \n",
+       "3                      Car-free cities   \n",
+       "4                      Car-free cities   \n",
+       "...                                ...   \n",
+       "1373  Does the electoral college work?   \n",
+       "1374                   Car-free cities   \n",
+       "1375                   Car-free cities   \n",
+       "1376                   Car-free cities   \n",
+       "1377                   Car-free cities   \n",
+       "\n",
+       "                                           instructions  \\\n",
+       "0     Write an explanatory essay to inform fellow ci...   \n",
+       "1     Write an explanatory essay to inform fellow ci...   \n",
+       "2     Write an explanatory essay to inform fellow ci...   \n",
+       "3     Write an explanatory essay to inform fellow ci...   \n",
+       "4     Write an explanatory essay to inform fellow ci...   \n",
+       "...                                                 ...   \n",
+       "1373  Write a letter to your state senator in which ...   \n",
+       "1374  Write an explanatory essay to inform fellow ci...   \n",
+       "1375  Write an explanatory essay to inform fellow ci...   \n",
+       "1376  Write an explanatory essay to inform fellow ci...   \n",
+       "1377  Write an explanatory essay to inform fellow ci...   \n",
+       "\n",
+       "                                            source_text  \n",
+       "0     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "2     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "3     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "4     # In German Suburb, Life Goes On Without Cars ...  \n",
+       "...                                                 ...  \n",
+       "1373  # What Is the Electoral College? by the Office...  \n",
+       "1374  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1375  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1376  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "1377  # In German Suburb, Life Goes On Without Cars ...  \n",
+       "\n",
+       "[1378 rows x 6 columns]"
+      ]
+     },
+     "execution_count": 19,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "adf27600",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:08.355604Z",
+     "iopub.status.busy": "2024-09-16T11:27:08.355098Z",
+     "iopub.status.idle": "2024-09-16T11:27:09.369217Z",
+     "shell.execute_reply": "2024-09-16T11:27:09.368067Z"
+    },
+    "papermill": {
+     "duration": 1.033924,
+     "end_time": "2024-09-16T11:27:09.371890",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:08.337966",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[nltk_data] Downloading package stopwords to /usr/share/nltk_data...\n",
+      "[nltk_data]   Package stopwords is already up-to-date!\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "True"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import nltk\n",
+    "nltk.download('stopwords')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "c59c689d",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:09.410358Z",
+     "iopub.status.busy": "2024-09-16T11:27:09.409885Z",
+     "iopub.status.idle": "2024-09-16T11:27:09.416386Z",
+     "shell.execute_reply": "2024-09-16T11:27:09.415203Z"
+    },
+    "papermill": {
+     "duration": 0.03133,
+     "end_time": "2024-09-16T11:27:09.419353",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:09.388023",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from nltk.corpus import stopwords\n",
+    "from nltk.tokenize import word_tokenize"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "03de7926",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:09.455292Z",
+     "iopub.status.busy": "2024-09-16T11:27:09.454812Z",
+     "iopub.status.idle": "2024-09-16T11:27:09.463643Z",
+     "shell.execute_reply": "2024-09-16T11:27:09.462385Z"
+    },
+    "papermill": {
+     "duration": 0.030869,
+     "end_time": "2024-09-16T11:27:09.467695",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:09.436826",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "stop_words = set(stopwords.words('english'))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "903926ac",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:09.503110Z",
+     "iopub.status.busy": "2024-09-16T11:27:09.502677Z",
+     "iopub.status.idle": "2024-09-16T11:27:09.509292Z",
+     "shell.execute_reply": "2024-09-16T11:27:09.507970Z"
+    },
+    "papermill": {
+     "duration": 0.027022,
+     "end_time": "2024-09-16T11:27:09.512014",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:09.484992",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def remove_stopwords(text):\n",
+    "    words = word_tokenize(text)  \n",
+    "    words_filtered = [word for word in words if word.lower() not in stop_words]\n",
+    "    return ' '.join(words_filtered)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "79e7db52",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:09.546476Z",
+     "iopub.status.busy": "2024-09-16T11:27:09.545993Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.728527Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.727211Z"
+    },
+    "papermill": {
+     "duration": 6.203381,
+     "end_time": "2024-09-16T11:27:15.731470",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:09.528089",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x['text'] = x['text'].apply(remove_stopwords)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "912f2798",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.764885Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.764443Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.778619Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.777448Z"
+    },
+    "papermill": {
+     "duration": 0.033619,
+     "end_time": "2024-09-16T11:27:15.780998",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.747379",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars . Cars around since became famous 1900s ,...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Transportation large necessity countries world...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>`` America 's love affair 's vehicles seems co...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>often ride car ? drive one motor vehicle work ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars wonderful thing . perhaps one worlds grea...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>fuss Elector College . Many people get confuse...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Limiting car usage many advantages . putting l...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>'s new trend developing years , soon full thro...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>know cars big part society today . However car...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Cars around since 1800 's popular ever since ....</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 5 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id                                               text  \\\n",
+       "0             0  Cars . Cars around since became famous 1900s ,...   \n",
+       "1             0  Transportation large necessity countries world...   \n",
+       "2             0  `` America 's love affair 's vehicles seems co...   \n",
+       "3             0  often ride car ? drive one motor vehicle work ...   \n",
+       "4             0  Cars wonderful thing . perhaps one worlds grea...   \n",
+       "...         ...                                                ...   \n",
+       "1373          1  fuss Elector College . Many people get confuse...   \n",
+       "1374          0  Limiting car usage many advantages . putting l...   \n",
+       "1375          0  's new trend developing years , soon full thro...   \n",
+       "1376          0  know cars big part society today . However car...   \n",
+       "1377          0  Cars around since 1800 's popular ever since ....   \n",
+       "\n",
+       "      prompt_name  instructions  source_text  \n",
+       "0               0             1            0  \n",
+       "1               0             1            0  \n",
+       "2               0             1            0  \n",
+       "3               0             1            0  \n",
+       "4               0             1            0  \n",
+       "...           ...           ...          ...  \n",
+       "1373            1             0            1  \n",
+       "1374            0             1            0  \n",
+       "1375            0             1            0  \n",
+       "1376            0             1            0  \n",
+       "1377            0             1            0  \n",
+       "\n",
+       "[1378 rows x 5 columns]"
+      ]
+     },
+     "execution_count": 25,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "8a3989e0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.817054Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.816591Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.821773Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.820622Z"
+    },
+    "papermill": {
+     "duration": 0.026687,
+     "end_time": "2024-09-16T11:27:15.823946",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.797259",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from nltk.tokenize import word_tokenize"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "id": "84582b49",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.858209Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.857771Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.862996Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.861865Z"
+    },
+    "papermill": {
+     "duration": 0.025292,
+     "end_time": "2024-09-16T11:27:15.865322",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.840030",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import string"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "id": "94f54fed",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.899799Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.899344Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.904582Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.903404Z"
+    },
+    "papermill": {
+     "duration": 0.025254,
+     "end_time": "2024-09-16T11:27:15.907088",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.881834",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "custom_punctuation = string.punctuation + '‘’“”'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "id": "69135049",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.942168Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.941716Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.947569Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.946215Z"
+    },
+    "papermill": {
+     "duration": 0.026913,
+     "end_time": "2024-09-16T11:27:15.950159",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.923246",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def remove_punctuation(text):\n",
+    "    words = word_tokenize(text)\n",
+    "    words_filtered = [word for word in words if word not in custom_punctuation]\n",
+    "    return ' '.join(words_filtered)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "939de8dc",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:15.985418Z",
+     "iopub.status.busy": "2024-09-16T11:27:15.984957Z",
+     "iopub.status.idle": "2024-09-16T11:27:15.990521Z",
+     "shell.execute_reply": "2024-09-16T11:27:15.989206Z"
+    },
+    "papermill": {
+     "duration": 0.02638,
+     "end_time": "2024-09-16T11:27:15.993008",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:15.966628",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import string"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "id": "52fa5a84",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:16.027412Z",
+     "iopub.status.busy": "2024-09-16T11:27:16.026952Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.090707Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.089501Z"
+    },
+    "papermill": {
+     "duration": 5.084244,
+     "end_time": "2024-09-16T11:27:21.093528",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:16.009284",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x['text'] = x['text'].apply(remove_punctuation)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "id": "5edd3a20",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.130501Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.129391Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.136852Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.135758Z"
+    },
+    "papermill": {
+     "duration": 0.028159,
+     "end_time": "2024-09-16T11:27:21.139114",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.110955",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "\"Cars Cars around since became famous 1900s Henry Ford created built first ModelT Cars played major role every day lives since people starting question limiting car usage would good thing limiting use cars might good thing like matter article `` German Suburb Life Goes Without Cars '' Elizabeth Rosenthal states automobiles linchpin suburbs middle class families either Shanghai Chicago tend make homes Experts say huge impediment current efforts reduce greenhouse gas emissions tailpipe Passenger cars responsible 12 percent greenhouse gas emissions Europe ... 50 percent carintensive areas United States Cars main reason greenhouse gas emissions lot people driving around time getting need go Article `` Paris bans driving due smog '' Robert Duffer says Paris days nearrecord pollution enforced partial driving ban clear air global city also says Monday motorist evennumbered license plates ordered leave cars home fined 22euro fine 31 order would applied oddnumbered plates following day Cars reason polluting entire cities like Paris shows bad cars pollution cause entire city Likewise article `` Carfree day spinning big hit Bogota '' Andrew Selsky says programs 's set spread countries millions Columbians hiked biked skated took bus work carfree day leaving streets capital city eerily devoid traffic jams third straight year cars banned buses taxis permitted Day Without Cars capital city 7 million People like idea carfree days allows lesson pollution cars put exhaust people driving time article also tells parks sports centers bustled throughout city uneven pitted sidewalks replaced broad smooth sidewalks rushhour restrictions dramatically cut traffic new restaurants upscale shopping districts cropped cars good country Columbia aloud repair things needed repairs long time traffic jams gone restaurants shopping districts popped due fact less cars around conclusion use less cars carfree days big impact environment cities cutting air pollution cars majorly polluted aloud countries like Columbia repair sidewalks cut traffic jams Limiting use cars would good thing America limit use cars maybe riding bike maybe walking somewhere n't far n't need use car get limiting use cars might good thing\""
+      ]
+     },
+     "execution_count": 32,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x['text'][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "id": "be471aae",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.174109Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.173659Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.179778Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.178534Z"
+    },
+    "papermill": {
+     "duration": 0.026804,
+     "end_time": "2024-09-16T11:27:21.182220",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.155416",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def remove_quotes(text):\n",
+    "    \n",
+    "    quotes_to_remove = ['\"', \"'\", '‘', '’', '“', '”',\"''\",'\"\"',\"``\",\".\"]\n",
+    "    \n",
+    "    for quote in quotes_to_remove:\n",
+    "        text = text.replace(quote, \"\")\n",
+    "    return text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "f39e0bee",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.272141Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.271701Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.294484Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.293353Z"
+    },
+    "papermill": {
+     "duration": 0.098604,
+     "end_time": "2024-09-16T11:27:21.297102",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.198498",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x['text'] = x['text'].apply(remove_quotes)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "id": "7147afdd",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.333455Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.332215Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.339544Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.338493Z"
+    },
+    "papermill": {
+     "duration": 0.02745,
+     "end_time": "2024-09-16T11:27:21.341853",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.314403",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'Cars Cars around since became famous 1900s Henry Ford created built first ModelT Cars played major role every day lives since people starting question limiting car usage would good thing limiting use cars might good thing like matter article  German Suburb Life Goes Without Cars  Elizabeth Rosenthal states automobiles linchpin suburbs middle class families either Shanghai Chicago tend make homes Experts say huge impediment current efforts reduce greenhouse gas emissions tailpipe Passenger cars responsible 12 percent greenhouse gas emissions Europe  50 percent carintensive areas United States Cars main reason greenhouse gas emissions lot people driving around time getting need go Article  Paris bans driving due smog  Robert Duffer says Paris days nearrecord pollution enforced partial driving ban clear air global city also says Monday motorist evennumbered license plates ordered leave cars home fined 22euro fine 31 order would applied oddnumbered plates following day Cars reason polluting entire cities like Paris shows bad cars pollution cause entire city Likewise article  Carfree day spinning big hit Bogota  Andrew Selsky says programs s set spread countries millions Columbians hiked biked skated took bus work carfree day leaving streets capital city eerily devoid traffic jams third straight year cars banned buses taxis permitted Day Without Cars capital city 7 million People like idea carfree days allows lesson pollution cars put exhaust people driving time article also tells parks sports centers bustled throughout city uneven pitted sidewalks replaced broad smooth sidewalks rushhour restrictions dramatically cut traffic new restaurants upscale shopping districts cropped cars good country Columbia aloud repair things needed repairs long time traffic jams gone restaurants shopping districts popped due fact less cars around conclusion use less cars carfree days big impact environment cities cutting air pollution cars majorly polluted aloud countries like Columbia repair sidewalks cut traffic jams Limiting use cars would good thing America limit use cars maybe riding bike maybe walking somewhere nt far nt need use car get limiting use cars might good thing'"
+      ]
+     },
+     "execution_count": 35,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x['text'][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "f9dc0918",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.377466Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.376335Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.381897Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.380930Z"
+    },
+    "papermill": {
+     "duration": 0.025664,
+     "end_time": "2024-09-16T11:27:21.384071",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.358407",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def convert_to_lowercase(text):\n",
+    "    return text.lower()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "4d1a7100",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.421233Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.420823Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.429556Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.428511Z"
+    },
+    "papermill": {
+     "duration": 0.031314,
+     "end_time": "2024-09-16T11:27:21.432105",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.400791",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x['text'] = x['text'].apply(convert_to_lowercase)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "46f542cf",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.469368Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.468938Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.476418Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.475162Z"
+    },
+    "papermill": {
+     "duration": 0.029468,
+     "end_time": "2024-09-16T11:27:21.478696",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.449228",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'cars cars around since became famous 1900s henry ford created built first modelt cars played major role every day lives since people starting question limiting car usage would good thing limiting use cars might good thing like matter article  german suburb life goes without cars  elizabeth rosenthal states automobiles linchpin suburbs middle class families either shanghai chicago tend make homes experts say huge impediment current efforts reduce greenhouse gas emissions tailpipe passenger cars responsible 12 percent greenhouse gas emissions europe  50 percent carintensive areas united states cars main reason greenhouse gas emissions lot people driving around time getting need go article  paris bans driving due smog  robert duffer says paris days nearrecord pollution enforced partial driving ban clear air global city also says monday motorist evennumbered license plates ordered leave cars home fined 22euro fine 31 order would applied oddnumbered plates following day cars reason polluting entire cities like paris shows bad cars pollution cause entire city likewise article  carfree day spinning big hit bogota  andrew selsky says programs s set spread countries millions columbians hiked biked skated took bus work carfree day leaving streets capital city eerily devoid traffic jams third straight year cars banned buses taxis permitted day without cars capital city 7 million people like idea carfree days allows lesson pollution cars put exhaust people driving time article also tells parks sports centers bustled throughout city uneven pitted sidewalks replaced broad smooth sidewalks rushhour restrictions dramatically cut traffic new restaurants upscale shopping districts cropped cars good country columbia aloud repair things needed repairs long time traffic jams gone restaurants shopping districts popped due fact less cars around conclusion use less cars carfree days big impact environment cities cutting air pollution cars majorly polluted aloud countries like columbia repair sidewalks cut traffic jams limiting use cars would good thing america limit use cars maybe riding bike maybe walking somewhere nt far nt need use car get limiting use cars might good thing'"
+      ]
+     },
+     "execution_count": 38,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x['text'][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "id": "5e38d653",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.514220Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.513772Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.518776Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.517711Z"
+    },
+    "papermill": {
+     "duration": 0.025614,
+     "end_time": "2024-09-16T11:27:21.520926",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.495312",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from nltk.stem.porter import PorterStemmer"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "15724d58",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.557684Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.557179Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.562676Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.561398Z"
+    },
+    "papermill": {
+     "duration": 0.026326,
+     "end_time": "2024-09-16T11:27:21.565181",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.538855",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "ps=PorterStemmer()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "id": "02114c56",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.601033Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.600590Z",
+     "iopub.status.idle": "2024-09-16T11:27:21.606466Z",
+     "shell.execute_reply": "2024-09-16T11:27:21.605329Z"
+    },
+    "papermill": {
+     "duration": 0.026315,
+     "end_time": "2024-09-16T11:27:21.608731",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.582416",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def stem(text):\n",
+    "    y=[]\n",
+    "    \n",
+    "    for i in text.split():\n",
+    "        y.append(ps.stem(i))\n",
+    "        \n",
+    "    return ' '.join(y)\n",
+    "        "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "6205c72c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:21.643863Z",
+     "iopub.status.busy": "2024-09-16T11:27:21.643408Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.511216Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.510042Z"
+    },
+    "papermill": {
+     "duration": 10.888632,
+     "end_time": "2024-09-16T11:27:32.514220",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:21.625588",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x['text'] = x['text'].apply(stem)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "id": "cc41324c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.550983Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.550559Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.557969Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.556847Z"
+    },
+    "papermill": {
+     "duration": 0.02756,
+     "end_time": "2024-09-16T11:27:32.560170",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.532610",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'car car around sinc becam famou 1900 henri ford creat built first modelt car play major role everi day live sinc peopl start question limit car usag would good thing limit use car might good thing like matter articl german suburb life goe without car elizabeth rosenth state automobil linchpin suburb middl class famili either shanghai chicago tend make home expert say huge impedi current effort reduc greenhous ga emiss tailpip passeng car respons 12 percent greenhous ga emiss europ 50 percent carintens area unit state car main reason greenhous ga emiss lot peopl drive around time get need go articl pari ban drive due smog robert duffer say pari day nearrecord pollut enforc partial drive ban clear air global citi also say monday motorist evennumb licens plate order leav car home fine 22euro fine 31 order would appli oddnumb plate follow day car reason pollut entir citi like pari show bad car pollut caus entir citi likewis articl carfre day spin big hit bogota andrew selski say program s set spread countri million columbian hike bike skate took bu work carfre day leav street capit citi eerili devoid traffic jam third straight year car ban buse taxi permit day without car capit citi 7 million peopl like idea carfre day allow lesson pollut car put exhaust peopl drive time articl also tell park sport center bustl throughout citi uneven pit sidewalk replac broad smooth sidewalk rushhour restrict dramat cut traffic new restaur upscal shop district crop car good countri columbia aloud repair thing need repair long time traffic jam gone restaur shop district pop due fact less car around conclus use less car carfre day big impact environ citi cut air pollut car majorli pollut aloud countri like columbia repair sidewalk cut traffic jam limit use car would good thing america limit use car mayb ride bike mayb walk somewher nt far nt need use car get limit use car might good thing'"
+      ]
+     },
+     "execution_count": 43,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x['text'][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "cfc60481",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.603166Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.602605Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.616237Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.614741Z"
+    },
+    "papermill": {
+     "duration": 0.041756,
+     "end_time": "2024-09-16T11:27:32.619684",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.577928",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "1373    fuss elector colleg mani peopl get confus work...\n",
+       "1374    limit car usag mani advantag put lot less poll...\n",
+       "1375    s new trend develop year soon full throttl aff...\n",
+       "1376    know car big part societi today howev car bigg...\n",
+       "1377    car around sinc 1800 s popular ever sinc altho...\n",
+       "Name: text, dtype: object"
+      ]
+     },
+     "execution_count": 44,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x['text'].tail()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "id": "9ee0f62f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.660049Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.659490Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.665678Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.664483Z"
+    },
+    "papermill": {
+     "duration": 0.0281,
+     "end_time": "2024-09-16T11:27:32.668662",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.640562",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.feature_extraction.text import TfidfTransformer"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "346ef5a0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.711612Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.710613Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.736635Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.735331Z"
+    },
+    "papermill": {
+     "duration": 0.047535,
+     "end_time": "2024-09-16T11:27:32.739294",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.691759",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>car car around sinc becam famou 1900 henri for...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>transport larg necess countri worldwid doubt c...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>america s love affair s vehicl seem cool say e...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>often ride car drive one motor vehicl work sto...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>car wonder thing perhap one world greatest adv...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>fuss elector colleg mani peopl get confus work...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>limit car usag mani advantag put lot less poll...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>s new trend develop year soon full throttl aff...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>know car big part societi today howev car bigg...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>car around sinc 1800 s popular ever sinc altho...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 5 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id                                               text  \\\n",
+       "0             0  car car around sinc becam famou 1900 henri for...   \n",
+       "1             0  transport larg necess countri worldwid doubt c...   \n",
+       "2             0  america s love affair s vehicl seem cool say e...   \n",
+       "3             0  often ride car drive one motor vehicl work sto...   \n",
+       "4             0  car wonder thing perhap one world greatest adv...   \n",
+       "...         ...                                                ...   \n",
+       "1373          1  fuss elector colleg mani peopl get confus work...   \n",
+       "1374          0  limit car usag mani advantag put lot less poll...   \n",
+       "1375          0  s new trend develop year soon full throttl aff...   \n",
+       "1376          0  know car big part societi today howev car bigg...   \n",
+       "1377          0  car around sinc 1800 s popular ever sinc altho...   \n",
+       "\n",
+       "      prompt_name  instructions  source_text  \n",
+       "0               0             1            0  \n",
+       "1               0             1            0  \n",
+       "2               0             1            0  \n",
+       "3               0             1            0  \n",
+       "4               0             1            0  \n",
+       "...           ...           ...          ...  \n",
+       "1373            1             0            1  \n",
+       "1374            0             1            0  \n",
+       "1375            0             1            0  \n",
+       "1376            0             1            0  \n",
+       "1377            0             1            0  \n",
+       "\n",
+       "[1378 rows x 5 columns]"
+      ]
+     },
+     "execution_count": 46,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "id": "4d808b6a",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.780500Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.779375Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.788101Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.786809Z"
+    },
+    "papermill": {
+     "duration": 0.030636,
+     "end_time": "2024-09-16T11:27:32.791155",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.760519",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "1"
+      ]
+     },
+     "execution_count": 47,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y[704]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "ca952b74",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.829477Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.828330Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.838987Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.837777Z"
+    },
+    "papermill": {
+     "duration": 0.0322,
+     "end_time": "2024-09-16T11:27:32.841188",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.808988",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "prompt_id                                                       1\n",
+       "text            essay analyz discuss prove one reason favor ke...\n",
+       "prompt_name                                                     1\n",
+       "instructions                                                    0\n",
+       "source_text                                                     1\n",
+       "Name: 704, dtype: object"
+      ]
+     },
+     "execution_count": 48,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x.loc[704]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "id": "d5121823",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.887424Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.886983Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.892724Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.891625Z"
+    },
+    "papermill": {
+     "duration": 0.035339,
+     "end_time": "2024-09-16T11:27:32.895133",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.859794",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.feature_extraction.text import TfidfVectorizer"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "bd170ed5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.932616Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.931531Z",
+     "iopub.status.idle": "2024-09-16T11:27:32.937692Z",
+     "shell.execute_reply": "2024-09-16T11:27:32.936521Z"
+    },
+    "papermill": {
+     "duration": 0.027322,
+     "end_time": "2024-09-16T11:27:32.940000",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.912678",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "tfidf_vectorizer = TfidfVectorizer(ngram_range=(2,7), max_features=10000, stop_words='english', max_df=0.95)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "id": "d563bb10",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:32.977848Z",
+     "iopub.status.busy": "2024-09-16T11:27:32.976892Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.587346Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.586010Z"
+    },
+    "papermill": {
+     "duration": 9.632675,
+     "end_time": "2024-09-16T11:27:42.590324",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:32.957649",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "tfidf_vectorizer = TfidfVectorizer(ngram_range=(2, 7), max_features=10000, stop_words='english', max_df=0.95)\n",
+    "\n",
+    "# Apply TF-IDF on the 'text' column\n",
+    "tfidf_matrix = tfidf_vectorizer.fit_transform(x['text'])\n",
+    "\n",
+    "# Convert the sparse TF-IDF matrix to a dense DataFrame\n",
+    "tfidf_x= pd.DataFrame(tfidf_matrix.toarray(), columns=tfidf_vectorizer.get_feature_names_out())\n",
+    "\n",
+    "# Reset index of the original DataFrame to align with tfidf_df\n",
+    "x= x.reset_index(drop=True)\n",
+    "\n",
+    "# Concatenate the TF-IDF features with the other columns\n",
+    "x = pd.concat([x[['prompt_id', 'prompt_name', 'instructions', 'source_text']], tfidf_x], axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "81416b0c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.626719Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.626256Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.666696Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.665487Z"
+    },
+    "papermill": {
+     "duration": 0.06163,
+     "end_time": "2024-09-16T11:27:42.669342",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.607712",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>prompt_id</th>\n",
+       "      <th>prompt_name</th>\n",
+       "      <th>instructions</th>\n",
+       "      <th>source_text</th>\n",
+       "      <th>000 dollar</th>\n",
+       "      <th>000 driver</th>\n",
+       "      <th>000 driver fine</th>\n",
+       "      <th>000 driver fine accord</th>\n",
+       "      <th>000 driver fine accord reuter</th>\n",
+       "      <th>000 home</th>\n",
+       "      <th>...</th>\n",
+       "      <th>york new bikeshar program skyrocket</th>\n",
+       "      <th>york time</th>\n",
+       "      <th>young adult</th>\n",
+       "      <th>young peopl</th>\n",
+       "      <th>young peopl decreas</th>\n",
+       "      <th>young peopl decreas 23</th>\n",
+       "      <th>young peopl decreas 23 percent</th>\n",
+       "      <th>young peopl decreas 23 percent 2001</th>\n",
+       "      <th>young peopl decreas 23 percent 2001 2009</th>\n",
+       "      <th>young peopl drive</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1373</th>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1374</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1375</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1376</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1377</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1378 rows × 10004 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      prompt_id  prompt_name  instructions  source_text  000 dollar  \\\n",
+       "0             0            0             1            0         0.0   \n",
+       "1             0            0             1            0         0.0   \n",
+       "2             0            0             1            0         0.0   \n",
+       "3             0            0             1            0         0.0   \n",
+       "4             0            0             1            0         0.0   \n",
+       "...         ...          ...           ...          ...         ...   \n",
+       "1373          1            1             0            1         0.0   \n",
+       "1374          0            0             1            0         0.0   \n",
+       "1375          0            0             1            0         0.0   \n",
+       "1376          0            0             1            0         0.0   \n",
+       "1377          0            0             1            0         0.0   \n",
+       "\n",
+       "      000 driver  000 driver fine  000 driver fine accord  \\\n",
+       "0            0.0              0.0                     0.0   \n",
+       "1            0.0              0.0                     0.0   \n",
+       "2            0.0              0.0                     0.0   \n",
+       "3            0.0              0.0                     0.0   \n",
+       "4            0.0              0.0                     0.0   \n",
+       "...          ...              ...                     ...   \n",
+       "1373         0.0              0.0                     0.0   \n",
+       "1374         0.0              0.0                     0.0   \n",
+       "1375         0.0              0.0                     0.0   \n",
+       "1376         0.0              0.0                     0.0   \n",
+       "1377         0.0              0.0                     0.0   \n",
+       "\n",
+       "      000 driver fine accord reuter  000 home  ...  \\\n",
+       "0                               0.0       0.0  ...   \n",
+       "1                               0.0       0.0  ...   \n",
+       "2                               0.0       0.0  ...   \n",
+       "3                               0.0       0.0  ...   \n",
+       "4                               0.0       0.0  ...   \n",
+       "...                             ...       ...  ...   \n",
+       "1373                            0.0       0.0  ...   \n",
+       "1374                            0.0       0.0  ...   \n",
+       "1375                            0.0       0.0  ...   \n",
+       "1376                            0.0       0.0  ...   \n",
+       "1377                            0.0       0.0  ...   \n",
+       "\n",
+       "      york new bikeshar program skyrocket  york time  young adult  \\\n",
+       "0                                     0.0        0.0          0.0   \n",
+       "1                                     0.0        0.0          0.0   \n",
+       "2                                     0.0        0.0          0.0   \n",
+       "3                                     0.0        0.0          0.0   \n",
+       "4                                     0.0        0.0          0.0   \n",
+       "...                                   ...        ...          ...   \n",
+       "1373                                  0.0        0.0          0.0   \n",
+       "1374                                  0.0        0.0          0.0   \n",
+       "1375                                  0.0        0.0          0.0   \n",
+       "1376                                  0.0        0.0          0.0   \n",
+       "1377                                  0.0        0.0          0.0   \n",
+       "\n",
+       "      young peopl  young peopl decreas  young peopl decreas 23  \\\n",
+       "0             0.0                  0.0                     0.0   \n",
+       "1             0.0                  0.0                     0.0   \n",
+       "2             0.0                  0.0                     0.0   \n",
+       "3             0.0                  0.0                     0.0   \n",
+       "4             0.0                  0.0                     0.0   \n",
+       "...           ...                  ...                     ...   \n",
+       "1373          0.0                  0.0                     0.0   \n",
+       "1374          0.0                  0.0                     0.0   \n",
+       "1375          0.0                  0.0                     0.0   \n",
+       "1376          0.0                  0.0                     0.0   \n",
+       "1377          0.0                  0.0                     0.0   \n",
+       "\n",
+       "      young peopl decreas 23 percent  young peopl decreas 23 percent 2001  \\\n",
+       "0                                0.0                                  0.0   \n",
+       "1                                0.0                                  0.0   \n",
+       "2                                0.0                                  0.0   \n",
+       "3                                0.0                                  0.0   \n",
+       "4                                0.0                                  0.0   \n",
+       "...                              ...                                  ...   \n",
+       "1373                             0.0                                  0.0   \n",
+       "1374                             0.0                                  0.0   \n",
+       "1375                             0.0                                  0.0   \n",
+       "1376                             0.0                                  0.0   \n",
+       "1377                             0.0                                  0.0   \n",
+       "\n",
+       "      young peopl decreas 23 percent 2001 2009  young peopl drive  \n",
+       "0                                          0.0                0.0  \n",
+       "1                                          0.0                0.0  \n",
+       "2                                          0.0                0.0  \n",
+       "3                                          0.0                0.0  \n",
+       "4                                          0.0                0.0  \n",
+       "...                                        ...                ...  \n",
+       "1373                                       0.0                0.0  \n",
+       "1374                                       0.0                0.0  \n",
+       "1375                                       0.0                0.0  \n",
+       "1376                                       0.0                0.0  \n",
+       "1377                                       0.0                0.0  \n",
+       "\n",
+       "[1378 rows x 10004 columns]"
+      ]
+     },
+     "execution_count": 52,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 53,
+   "id": "24d85209",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.708385Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.707946Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.718359Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.717194Z"
+    },
+    "papermill": {
+     "duration": 0.032005,
+     "end_time": "2024-09-16T11:27:42.720650",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.688645",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0       0\n",
+       "1       0\n",
+       "2       0\n",
+       "3       0\n",
+       "4       0\n",
+       "       ..\n",
+       "1373    0\n",
+       "1374    0\n",
+       "1375    0\n",
+       "1376    0\n",
+       "1377    0\n",
+       "Name: generated, Length: 1378, dtype: int64"
+      ]
+     },
+     "execution_count": 53,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "id": "1be9b832",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.759017Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.758138Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.763484Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.762243Z"
+    },
+    "papermill": {
+     "duration": 0.027169,
+     "end_time": "2024-09-16T11:27:42.765814",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.738645",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.model_selection import train_test_split"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "id": "3d3563d1",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.804214Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.803265Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.882932Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.881767Z"
+    },
+    "papermill": {
+     "duration": 0.101671,
+     "end_time": "2024-09-16T11:27:42.885548",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.783877",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.4, random_state=2\n",
+    "                                                )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "2f8cc412",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.925987Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.925530Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.933647Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.932365Z"
+    },
+    "papermill": {
+     "duration": 0.03241,
+     "end_time": "2024-09-16T11:27:42.936224",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.903814",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "((826, 10004), (552, 10004), (826,), (552,))"
+      ]
+     },
+     "execution_count": 56,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x_train.shape,x_test.shape,y_train.shape,y_test.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "id": "fd352533",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:42.976090Z",
+     "iopub.status.busy": "2024-09-16T11:27:42.974730Z",
+     "iopub.status.idle": "2024-09-16T11:27:42.980934Z",
+     "shell.execute_reply": "2024-09-16T11:27:42.979623Z"
+    },
+    "papermill": {
+     "duration": 0.029147,
+     "end_time": "2024-09-16T11:27:42.983480",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:42.954333",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.svm import SVC"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "id": "09599bd4",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:43.022396Z",
+     "iopub.status.busy": "2024-09-16T11:27:43.021538Z",
+     "iopub.status.idle": "2024-09-16T11:27:43.027225Z",
+     "shell.execute_reply": "2024-09-16T11:27:43.025921Z"
+    },
+    "papermill": {
+     "duration": 0.028001,
+     "end_time": "2024-09-16T11:27:43.029716",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:43.001715",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "svc= SVC(kernel=\"linear\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 59,
+   "id": "a6121c8b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:43.067947Z",
+     "iopub.status.busy": "2024-09-16T11:27:43.067504Z",
+     "iopub.status.idle": "2024-09-16T11:27:43.657628Z",
+     "shell.execute_reply": "2024-09-16T11:27:43.656612Z"
+    },
+    "papermill": {
+     "duration": 0.612482,
+     "end_time": "2024-09-16T11:27:43.660456",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:43.047974",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<style>#sk-container-id-1 {color: black;background-color: white;}#sk-container-id-1 pre{padding: 0;}#sk-container-id-1 div.sk-toggleable {background-color: white;}#sk-container-id-1 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-1 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-1 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-1 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-1 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-1 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-1 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-1 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-1 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-1 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-1 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-1 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-1 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-1 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-1 div.sk-item {position: relative;z-index: 1;}#sk-container-id-1 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-1 div.sk-item::before, #sk-container-id-1 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-1 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-1 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-1 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-1 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-1 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-1 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-1 div.sk-label-container {text-align: center;}#sk-container-id-1 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-1 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-1\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>SVC(kernel=&#x27;linear&#x27;)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-1\" type=\"checkbox\" checked><label for=\"sk-estimator-id-1\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">SVC</label><div class=\"sk-toggleable__content\"><pre>SVC(kernel=&#x27;linear&#x27;)</pre></div></div></div></div></div>"
+      ],
+      "text/plain": [
+       "SVC(kernel='linear')"
+      ]
+     },
+     "execution_count": 59,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "svc.fit(x_train,y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "id": "d32900f4",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:43.717056Z",
+     "iopub.status.busy": "2024-09-16T11:27:43.716578Z",
+     "iopub.status.idle": "2024-09-16T11:27:44.058866Z",
+     "shell.execute_reply": "2024-09-16T11:27:44.057802Z"
+    },
+    "papermill": {
+     "duration": 0.373703,
+     "end_time": "2024-09-16T11:27:44.061717",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:43.688014",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "y_pred= svc.predict(x_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 61,
+   "id": "0aa47549",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:44.119836Z",
+     "iopub.status.busy": "2024-09-16T11:27:44.119279Z",
+     "iopub.status.idle": "2024-09-16T11:27:44.126352Z",
+     "shell.execute_reply": "2024-09-16T11:27:44.125273Z"
+    },
+    "papermill": {
+     "duration": 0.039177,
+     "end_time": "2024-09-16T11:27:44.129467",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:44.090290",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.metrics import accuracy_score, classification_report"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 62,
+   "id": "47ad8238",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:44.184091Z",
+     "iopub.status.busy": "2024-09-16T11:27:44.183687Z",
+     "iopub.status.idle": "2024-09-16T11:27:44.190538Z",
+     "shell.execute_reply": "2024-09-16T11:27:44.189692Z"
+    },
+    "papermill": {
+     "duration": 0.035841,
+     "end_time": "2024-09-16T11:27:44.192942",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:44.157101",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "accuracy = accuracy_score(y_test, y_pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 63,
+   "id": "d0802034",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:44.231379Z",
+     "iopub.status.busy": "2024-09-16T11:27:44.230396Z",
+     "iopub.status.idle": "2024-09-16T11:27:44.237648Z",
+     "shell.execute_reply": "2024-09-16T11:27:44.236515Z"
+    },
+    "papermill": {
+     "duration": 0.028863,
+     "end_time": "2024-09-16T11:27:44.239808",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:44.210945",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.9981884057971014"
+      ]
+     },
+     "execution_count": 63,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "accuracy"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 64,
+   "id": "61af062a",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-16T11:27:44.278363Z",
+     "iopub.status.busy": "2024-09-16T11:27:44.277867Z",
+     "iopub.status.idle": "2024-09-16T11:27:44.297356Z",
+     "shell.execute_reply": "2024-09-16T11:27:44.296219Z"
+    },
+    "papermill": {
+     "duration": 0.041975,
+     "end_time": "2024-09-16T11:27:44.299998",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:44.258023",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "              precision    recall  f1-score   support\n",
+      "\n",
+      "           0       1.00      1.00      1.00       551\n",
+      "           1       0.00      0.00      0.00         1\n",
+      "\n",
+      "    accuracy                           1.00       552\n",
+      "   macro avg       0.50      0.50      0.50       552\n",
+      "weighted avg       1.00      1.00      1.00       552\n",
+      "\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/opt/conda/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1344: UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.\n",
+      "  _warn_prf(average, modifier, msg_start, len(result))\n",
+      "/opt/conda/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1344: UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.\n",
+      "  _warn_prf(average, modifier, msg_start, len(result))\n",
+      "/opt/conda/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1344: UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.\n",
+      "  _warn_prf(average, modifier, msg_start, len(result))\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(classification_report(y_test, y_pred))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "00e6ba67",
+   "metadata": {
+    "papermill": {
+     "duration": 0.017978,
+     "end_time": "2024-09-16T11:27:44.336503",
+     "exception": false,
+     "start_time": "2024-09-16T11:27:44.318525",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "databundleVersionId": 7516023,
+     "sourceId": 61542,
+     "sourceType": "competition"
+    }
+   ],
+   "dockerImageVersionId": 30761,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.14"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 43.898522,
+   "end_time": "2024-09-16T11:27:45.377895",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2024-09-16T11:27:01.479373",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
